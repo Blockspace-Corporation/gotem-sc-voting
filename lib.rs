@@ -7,6 +7,7 @@ pub use self::vote::{
 
 #[ink::contract]
 pub mod vote {
+
     use ink_prelude:: {
         string::String,
         vec::Vec,
@@ -45,9 +46,39 @@ pub mod vote {
         pub destribution_reward: u8,
     }
 
-    impl Voter {
-        fn get_voter(voter: &Voter) -> Voter {
-            Voter {
+    #[derive(Encode, Decode, Debug)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub struct VoterOutput {
+        pub voter_id: Id,
+        pub case_id: Id,
+        pub voter: String,
+        pub amount_hold: Balance,
+        pub vote_credit: Balance,
+    }
+
+    #[derive(Encode, Decode, Debug)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub struct VotesOutput {
+        pub vote_id: Id,
+        pub case_id: Id,
+        pub evidence_id: Id,
+        pub voter: String,
+        pub yes_credit: u8,
+        pub no_credit: u8,
+        pub destribution_reward: u8,
+    }
+
+    #[derive(Encode, Decode, Debug, PartialEq, Eq, Copy, Clone)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub enum Error {
+        VoterNotFound,
+        VoteNotFound,
+    }
+
+    impl VoterOutput {
+        fn get_voter(voter_id: Id, voter: &Voter) -> VoterOutput {
+            VoterOutput {
+                voter_id: voter_id.clone(),
                 case_id: voter.case_id.clone(),
                 voter: voter.voter.clone(),
                 amount_hold: voter.amount_hold.clone(),
@@ -56,9 +87,10 @@ pub mod vote {
         }
     }
 
-    impl Votes {
-        fn get_vote(vote: &Votes) -> Votes {
-            Votes {
+    impl VotesOutput {
+        fn get_vote(vote_id: Id, vote: &Votes) -> VotesOutput {
+            VotesOutput {
+                vote_id: vote_id.clone(),
                 case_id: vote.case_id.clone(),
                 evidence_id: vote.evidence_id.clone(),
                 voter: vote.voter.clone(),
@@ -91,19 +123,57 @@ pub mod vote {
         }
 
         #[ink(message)]
-        pub fn get_all_voter(&self) -> Vec<Voter> {
+        pub fn burn_voter(&mut self, voter_id: Id) -> Result<(), Error> {
+            if !self.voter.contains_key(&voter_id) {
+                return Err(Error::VoterNotFound)
+            };
+            self.voter.remove(&voter_id);
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn burn_vote(&mut self, vote_id: Id) -> Result<(), Error> {
+            if !self.vote.contains_key(&vote_id) {
+                return Err(Error::VoteNotFound)
+            };
+            self.vote.remove(&vote_id);
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn update_voter(&mut self, voter_id: Id, new_voter: Voter) -> Result<(), Error> {
+            let voter = self
+                .voter
+                .get_mut(&voter_id)
+                .ok_or(Error::VoterNotFound)?;
+            *voter = new_voter;
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn update_vote(&mut self, vote_id: Id, new_vote: Votes) -> Result<(), Error> {
+            let vote = self
+                .vote
+                .get_mut(&vote_id)
+                .ok_or(Error::VoteNotFound)?;
+            *vote = new_vote;
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn get_all_voter(&self) -> Vec<VoterOutput> {
             let voter = self
                 .voter
                 .iter()
-                .map(|(_id, voter)| Voter::get_voter(voter))
+                .map(|(voter_id, voter)| VoterOutput::get_voter(*voter_id, voter))
                 .collect();
             voter
         }
 
         #[ink(message)]
-        pub fn get_voter_by_id(&self, voter_id: Id) -> Option<Voter> {
+        pub fn get_voter_by_id(&self, voter_id: Id) -> Option<VoterOutput> {
             if let Some(voter) = self.voter.get(&voter_id) {
-                let voter = Voter::get_voter(voter);
+                let voter = VoterOutput::get_voter(voter_id, voter);
                 Some(voter)
             } else {
                 None
@@ -111,23 +181,51 @@ pub mod vote {
         }
 
         #[ink(message)]
-        pub fn get_all_votes(&self) -> Vec<Votes> {
+        pub fn get_all_votes(&self) -> Vec<VotesOutput> {
             let vote = self
                 .vote
                 .iter()
-                .map(|(_id, vote)| Votes::get_vote(vote))
+                .map(|(vote_id, vote)| VotesOutput::get_vote(*vote_id, vote))
                 .collect();
             vote
         }
 
         #[ink(message)]
-        pub fn get_vote_by_id(&self, vote_id: Id) -> Option<Votes> {
+        pub fn get_vote_by_id(&self, vote_id: Id) -> Option<VotesOutput> {
             if let Some(vote) = self.vote.get(&vote_id) {
-                let vote = Votes::get_vote(vote);
+                let vote = VotesOutput::get_vote(vote_id, vote);
                 Some(vote)
             } else {
                 None
             }
+        }
+
+        #[ink(message)]
+        pub fn voter_by_evidence_id(&self, evidence_id: Id) -> Vec<VoterOutput> {
+            let voter = self
+                .vote
+                .iter()
+                .filter_map(|(_vote_id, vote)| {
+                    if evidence_id == vote.evidence_id {
+                        Some(
+                            self.voter
+                                .iter()
+                                .filter_map(|(voter_id, voter)| {
+                                    if vote.case_id == voter.case_id {
+                                        Some(VoterOutput::get_voter(*voter_id, voter))
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect::<Vec<VoterOutput>>(), 
+                        )
+                    } else {
+                        None
+                    }
+                })
+                .flat_map(|voter_ids| voter_ids) 
+                .collect::<Vec<VoterOutput>>();
+            voter
         }
 
         #[ink(message)]
