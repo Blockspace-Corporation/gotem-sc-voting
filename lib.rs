@@ -112,13 +112,13 @@ pub mod vote {
 
         #[ink(message)]
         pub fn set_voter(&mut self, voter: Voter) {
-            let length = (self.voter.len() as u32).checked_add(1).unwrap();
+            let length: Id = (self.voter.len() as Id).checked_add(1).unwrap();
             self.voter.insert(length, voter);
         }
 
         #[ink(message)]
         pub fn set_vote(&mut self, vote: Votes) {
-            let length = (self.vote.len() as u32).checked_add(1).unwrap();
+            let length: Id = (self.vote.len() as Id).checked_add(1).unwrap();
             self.vote.insert(length, vote);
         }
 
@@ -142,7 +142,7 @@ pub mod vote {
 
         #[ink(message)]
         pub fn update_voter(&mut self, voter_id: Id, new_voter: Voter) -> Result<(), Error> {
-            let voter = self
+            let voter: &mut Voter = self
                 .voter
                 .get_mut(&voter_id)
                 .ok_or(Error::VoterNotFound)?;
@@ -152,7 +152,7 @@ pub mod vote {
 
         #[ink(message)]
         pub fn update_vote(&mut self, vote_id: Id, new_vote: Votes) -> Result<(), Error> {
-            let vote = self
+            let vote: &mut Votes = self
                 .vote
                 .get_mut(&vote_id)
                 .ok_or(Error::VoteNotFound)?;
@@ -162,7 +162,7 @@ pub mod vote {
 
         #[ink(message)]
         pub fn get_all_voter(&self) -> Vec<VoterOutput> {
-            let voter = self
+            let voter: Vec<VoterOutput> = self
                 .voter
                 .iter()
                 .map(|(voter_id, voter)| VoterOutput::get_voter(*voter_id, voter))
@@ -173,7 +173,7 @@ pub mod vote {
         #[ink(message)]
         pub fn get_voter_by_id(&self, voter_id: Id) -> Option<VoterOutput> {
             if let Some(voter) = self.voter.get(&voter_id) {
-                let voter = VoterOutput::get_voter(voter_id, voter);
+                let voter: VoterOutput = VoterOutput::get_voter(voter_id, voter);
                 Some(voter)
             } else {
                 None
@@ -182,7 +182,7 @@ pub mod vote {
 
         #[ink(message)]
         pub fn get_all_votes(&self) -> Vec<VotesOutput> {
-            let vote = self
+            let vote: Vec<VotesOutput> = self
                 .vote
                 .iter()
                 .map(|(vote_id, vote)| VotesOutput::get_vote(*vote_id, vote))
@@ -193,7 +193,7 @@ pub mod vote {
         #[ink(message)]
         pub fn get_vote_by_id(&self, vote_id: Id) -> Option<VotesOutput> {
             if let Some(vote) = self.vote.get(&vote_id) {
-                let vote = VotesOutput::get_vote(vote_id, vote);
+                let vote: VotesOutput = VotesOutput::get_vote(vote_id, vote);
                 Some(vote)
             } else {
                 None
@@ -201,31 +201,19 @@ pub mod vote {
         }
 
         #[ink(message)]
-        pub fn voter_by_evidence_id(&self, evidence_id: Id) -> Vec<VoterOutput> {
-            let voter = self
+        pub fn votes_by_evidence_id(&self, evidence_id: Id) -> Vec<VotesOutput> {
+            let votes: Vec<VotesOutput> = self
                 .vote
                 .iter()
-                .filter_map(|(_vote_id, vote)| {
+                .filter_map(|(vote_id, vote)| {
                     if evidence_id == vote.evidence_id {
-                        Some(
-                            self.voter
-                                .iter()
-                                .filter_map(|(voter_id, voter)| {
-                                    if vote.case_id == voter.case_id {
-                                        Some(VoterOutput::get_voter(*voter_id, voter))
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect::<Vec<VoterOutput>>(), 
-                        )
+                        Some(VotesOutput::get_vote(*vote_id, vote))
                     } else {
                         None
                     }
                 })
-                .flat_map(|voter_ids| voter_ids) 
-                .collect::<Vec<VoterOutput>>();
-            voter
+                .collect();
+            votes
         }
 
         #[ink(message)]
