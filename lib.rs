@@ -112,14 +112,22 @@ pub mod vote {
 
         #[ink(message)]
         pub fn set_voter(&mut self, voter: Voter) {
-            let length: Id = (self.voter.len() as Id).checked_add(1).unwrap();
-            self.voter.insert(length, voter);
+            let last_voter: &u32 = match self.voter.last_key_value() {
+                Some(data) => data.0,
+                None => &0,
+            };
+            let last_id = last_voter.checked_add(1).unwrap();
+            self.voter.insert(last_id, voter);
         }
 
         #[ink(message)]
         pub fn set_vote(&mut self, vote: Votes) {
-            let length: Id = (self.vote.len() as Id).checked_add(1).unwrap();
-            self.vote.insert(length, vote);
+            let last_vote: &u32 = match self.vote.last_key_value() {
+                Some(data) => data.0,
+                None => &0,
+            };
+            let last_id = last_vote.checked_add(1).unwrap();
+            self.vote.insert(last_id, vote);
         }
 
         #[ink(message)]
