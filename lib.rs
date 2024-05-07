@@ -24,6 +24,7 @@ pub mod vote {
     pub struct Vote {
         pub voter: BTreeMap<Id, Voter>,
         pub vote: BTreeMap<Id, Votes>,
+        pub contract_owner: AccountId,
     }
 
     #[derive(Encode, Decode, Debug)]
@@ -103,10 +104,11 @@ pub mod vote {
 
     impl Vote {
         #[ink(constructor, payable)]
-        pub fn new() -> Self {
+        pub fn new(contract_owner: AccountId) -> Self {
             Self {
                 voter: BTreeMap::new(),
                 vote: BTreeMap::new(),
+                contract_owner
             }
         }
 
