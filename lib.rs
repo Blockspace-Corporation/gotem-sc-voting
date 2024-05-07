@@ -228,7 +228,7 @@ pub mod vote {
         }
 
         #[ink(message)]
-        pub fn set_code(&mut self, code_hash: Hash) {
+        pub fn set_code(&mut self, code_hash: Hash) -> Result<(), Error> {
             let caller = self.env().caller();
             if caller != self.contract_owner {
                 return Err(Error::Unauthorized);
@@ -237,6 +237,7 @@ pub mod vote {
                 panic!("Failed to `set_code_hash` to {code_hash:?} due to {err:?}")
             });
             ink::env::debug_println!("Switched code hash to {:?}.", code_hash);
+            Ok(())
         }
     }
 }
