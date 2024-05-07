@@ -74,6 +74,7 @@ pub mod vote {
     pub enum Error {
         VoterNotFound,
         VoteNotFound,
+        Unauthorized,
     }
 
     impl VoterOutput {
@@ -228,6 +229,10 @@ pub mod vote {
 
         #[ink(message)]
         pub fn set_code(&mut self, code_hash: Hash) {
+            let caller = self.env().caller();
+            if caller != self.contract_owner {
+                return Err(Error::Unauthorized);
+            }
             self.env().set_code_hash(&code_hash).unwrap_or_else(|err| {
                 panic!("Failed to `set_code_hash` to {code_hash:?} due to {err:?}")
             });
